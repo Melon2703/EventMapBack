@@ -5,5 +5,3 @@ services:
     env: docker
     region: frankfurt
     rootDir: src
-    numInstances: 1
-    healthCheckPath: /
