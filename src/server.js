@@ -5,14 +5,14 @@ const bodyParser = require("body-parser");
 const { v4: uuidv } = require("uuid");
 const { Client } = require("pg");
 
-const port = 3002;
+const port = 3000;
 
 const dataBase = new Client({
-  host: "localhost",
-  port: 5432,
-  user: "postgres",
-  password: "1234",
-  database: "postgres",
+  host: process.env.DATABASE_HOST,
+  port: process.env.DATABASE_PORT,
+  user: process.env.DATABASE_USER,
+  password: process.env.DATABASE_PASSWORD,
+  database: process.env.DATABASE_NAME,
 });
 
 admin.initializeApp({

@@ -1,0 +1,31 @@
+version: "3"
+services:
+  db:
+    container_name: postgres
+    image: postgres
+    environment:
+      POSTGRES_PASSWORD: 1234
+      POSTGRES_DB: postgres
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres_dump.sql:/docker-entrypoint-initdb.d/postgres_dump.sql
+  web:
+    container_name: node-app
+    build: .
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DATABASE_HOST=db
+      - DATABASE_PORT=5432
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=1234
+      - DATABASE_NAME=postgres
