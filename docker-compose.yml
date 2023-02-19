@@ -17,6 +17,7 @@ services:
       - ./postgres_dump.sql:/docker-entrypoint-initdb.d/postgres_dump.sql
   web:
     container_name: node-app
+    # для этого нужен подходящий образ
     build: .
     ports:
       - "3000:3000"
