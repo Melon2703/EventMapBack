@@ -5,14 +5,14 @@ const bodyParser = require("body-parser");
 const { v4: uuidv } = require("uuid");
 const { Client } = require("pg");
 
-const port = 3000;
+const port = process.env.SERVER_PORT ?? 3001;
 
 const dataBase = new Client({
-  host: process.env.DATABASE_HOST,
-  port: process.env.DATABASE_PORT,
-  user: process.env.DATABASE_USER,
-  password: process.env.DATABASE_PASSWORD,
-  database: process.env.DATABASE_NAME,
+  host: process.env.DATABASE_HOST || "localhost",
+  port: process.env.DATABASE_PORT || 5432,
+  user: process.env.DATABASE_USER || "postgres",
+  password: process.env.DATABASE_PASSWORD || "1234",
+  database: process.env.DATABASE_NAME || "postgres",
 });
 
 admin.initializeApp({
@@ -95,8 +95,8 @@ app.post("/new-marker", (req, res) => {
   );
 });
 
-app.delete("/remove-marker", (req, res) => {
-  const { id } = req.query;
+app.delete("/remove-marker/:id", (req, res) => {
+  const { id } = req.params;
 
   dataBase.query("DELETE FROM markers WHERE uid = $1", [id], (error) => {
     if (error) {
@@ -109,42 +109,82 @@ app.delete("/remove-marker", (req, res) => {
   });
 });
 
-app.get("/all-markers", (req, res) => {
-  const { ownerId } = req.query;
+app.get("/all-markers", (_, res) => {
+  dataBase.query("SELECT * FROM markers", (error, result) => {
+    if (error) {
+      console.log({ error });
 
-  dataBase.query(
-    "SELECT * FROM markers WHERE owner_id = $1",
-    [ownerId],
-    (error, result) => {
-      if (error) {
-        console.log({ error });
+      res.status(400).send(error);
+    } else {
+      const markers = result.rows.map(
+        ({ description, is_private, type, name, owner_id, uid, position }) => ({
+          description,
+          isPrivate: is_private,
+          type,
+          name,
+          ownerId: owner_id,
+          position,
+          id: uid,
+        })
+      );
 
-        res.status(400).send(error);
-      } else {
-        const markers = result.rows.map(
-          ({
-            description,
-            is_private,
-            type,
-            name,
-            owner_id,
-            uid,
-            position,
-          }) => ({
-            description,
-            isPrivate: is_private,
-            type,
-            name,
-            ownerId: owner_id,
-            position,
-            id: uid,
-          })
-        );
-
-        res.send(markers);
-      }
+      res.send(markers);
     }
-  );
+  });
+});
+
+app.post("/update-marker/:id", async (req, res) => {
+  const { name, description, isPrivate, type } = req.body;
+
+  const { id } = req.params;
+
+  const updateFields = [];
+
+  const values = [];
+
+  if (name) {
+    updateFields.push(`name = $${updateFields.length + 1}`);
+
+    values.push(name);
+  }
+
+  if (description) {
+    updateFields.push(`description = $${updateFields.length + 1}`);
+
+    values.push(description);
+  }
+
+  if (isPrivate !== undefined) {
+    updateFields.push(`is_private = $${updateFields.length + 1}`);
+
+    values.push(isPrivate);
+  }
+
+  if (type) {
+    updateFields.push(`type = $${updateFields.length + 1}`);
+
+    values.push(type);
+  }
+
+  if (updateFields.length === 0) {
+    res.status(400).send("At least one field must be provided to update");
+
+    return;
+  }
+
+  const query = `UPDATE markers SET ${updateFields.join(
+    ", "
+  )} WHERE uid = '${id}';`;
+
+  try {
+    const result = await dataBase.query(query, values);
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).send("Internal server error");
+  }
 });
 
 dataBase.connect().then(() =>
